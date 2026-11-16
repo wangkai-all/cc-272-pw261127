@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>共享扫描服务 · Shared Physical Scan</title>
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <h1>共享物理扫描 <span class="sub">Shared Physical Scan</span></h1>
+    <p class="tagline">多人共用一次磁盘扫描，各自独立过滤 / 超时 / 版本；真实读取量全程可见</p>
+  </div>
+  <div class="server">
+    <span id="conn-dot" class="dot offline" title="轮询状态"></span>
+    <span id="conn-text">未连接</span>
+  </div>
+</header>
+
+<main class="grid">
+
+  <!-- ===================================================== 左栏：控制 -->
+  <section class="col col-left">
+
+    <div class="card">
+      <h2>1 · 文件与版本</h2>
+      <div class="row">
+        <button id="btn-generate" class="btn">生成演示文件</button>
+        <label>行数 <input id="gen-lines" type="number" value="4000" min="1" max="2000000"></label>
+        <label>种子 <input id="gen-seed" type="number" value="42"></label>
+      </div>
+      <div class="row">
+        <label class="grow">文件名
+          <input id="file-name" value="demo.jsonl" spellcheck="false">
+        </label>
+      </div>
+      <details class="upload">
+        <summary>上传 / 替换文件内容（产生新版本）</summary>
+        <textarea id="upload-content" rows="4"
+          placeholder='每行一条 JSON，例如：{"id":1,"category":"alpha"}'></textarea>
+        <button id="btn-upload" class="btn small">上传为新版本</button>
+      </details>
+      <div id="file-list" class="file-list"></div>
+    </div>
+
+    <div class="card">
+      <h2>2 · 发起查询</h2>
+      <label class="grow">目标文件
+        <select id="query-file"></select>
+      </label>
+      <div class="row wrap">
+        <label>过滤方式
+          <select id="filter-kind">
+            <option value="all">all（全部行）</option>
+            <option value="contains">contains（包含子串）</option>
+            <option value="regex">regex（正则）</option>
+            <option value="json">json（字段条件）</option>
+          </select>
+        </label>
+        <label id="wrap-pattern" class="grow hidden">pattern
+          <input id="filter-pattern" value="alpha" spellcheck="false">
+        </label>
+      </div>
+      <div id="wrap-json" class="row wrap hidden">
+        <label>字段 key <input id="json-key" value="category"></label>
+        <label>比较 op
+          <select id="json-op">
+            <option>eq</option><option>ne</option>
+            <option>contains</option><option>gt</option><option>lt</option>
+          </select>
+        </label>
+        <label class="grow">值 value <input id="json-value" value="alpha"></label>
+      </div>
+      <div class="row wrap">
+        <label>缓冲上限(条) <input id="buf-items" type="number" value="200"></label>
+        <label>入队超时(s) <input id="offer-timeout" type="number" step="0.1" value="2.0"></label>
+        <label class="check"><input id="born-slow" type="checkbox"> 天生慢消费者</label>
+      </div>
+      <div class="row">
+        <button id="btn-query" class="btn primary">发起查询并打开流</button>
+        <button id="btn-query-twice" class="btn" title="连续发两个查询以共享同一次扫描">并发 ×2（演示共享）</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>3 · 故障 / 恢复演示</h2>
+      <p class="hint">崩溃用 SIGKILL 硬杀进程；重启后只重放已落盘分片，且绝不跨版本拼接。</p>
+      <div class="row wrap">
+        <button id="btn-crash" class="btn danger">SIGKILL 崩溃</button>
+        <button id="btn-corrupt" class="btn danger">污染当前会话日志</button>
+      </div>
+      <p class="hint" id="crash-note"></p>
+    </div>
+
+  </section>
+
+  <!-- ===================================================== 中栏：订阅者 -->
+  <section class="col col-mid">
+    <div class="card stretch">
+      <h2>订阅者 / 逻辑流 <span class="muted" id="sub-count"></span></h2>
+      <div id="subscribers" class="sub-list">
+        <p class="empty">还没有查询。发起一个查询后，这里会出现一张带实时 SSE 流的卡片。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================================================== 右栏：指标与事件 -->
+  <section class="col col-right">
+    <div class="card">
+      <h2>真实物理读取量</h2>
+      <div id="totals" class="totals"></div>
+      <p class="hint">共享扫描按文件只读取一次；catch-up 是晚到者私下补读；independent 是整文件独立全扫。
+        逻辑命中数远小于物理字节，证明系统不是在缓存最终答案。</p>
+    </div>
+
+    <div class="card">
+      <h2>扫描会话</h2>
+      <div id="sessions" class="session-list"></div>
+    </div>
+
+    <div class="card stretch">
+      <h2>事件日志</h2>
+      <div id="events" class="event-log"></div>
+    </div>
+  </section>
+
+</main>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

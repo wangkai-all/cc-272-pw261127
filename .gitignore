@@ -32,3 +32,8 @@ test-results/
 *.sqlite3-shm
 *.sqlite3-journal
 !*.traineddata.gz
+
+# Runtime data of the shared-scan server (content store, journals, quarantine).
+# Code lives in server/; these are created per run and must never be committed.
+/state/
+/state-crash/
